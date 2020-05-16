@@ -29,6 +29,8 @@ export interface ListenOptionsTls {
 
 export type ListenOptions = ListenOptionsTls | ListenOptionsBase;
 
+export type ListenServerRef = Record<string, any> | undefined;
+
 function isOptionsTls(options: ListenOptions): options is ListenOptionsTls {
   return options.secure === true;
 }
@@ -217,14 +219,14 @@ export class Application<S extends State = Record<string, any>>
    * will be over HTTP.  If the options `.secure` property is `true`, a
    * `.certFile` and a `.keyFile` property need to be supplied and requests
    * will be processed over HTTPS. */
-  async listen(addr: string): Promise<void>;
+  async listen(addr: string, serverRef: ListenServerRef): Promise<void>;
   /** Start listening for requests, processing registered middleware on each
    * request.  If the options `.secure` is undefined or `false`, the listening
    * will be over HTTP.  If the options `.secure` property is `true`, a
    * `.certFile` and a `.keyFile` property need to be supplied and requests
    * will be processed over HTTPS. */
-  async listen(options: ListenOptions): Promise<void>;
-  async listen(options: string | ListenOptions): Promise<void> {
+  async listen(options: ListenOptions, serverRef: ListenServerRef): Promise<void>;
+  async listen(options: string | ListenOptions, serverRef: ListenServerRef): Promise<void> {
     if (typeof options === "string") {
       const match = ADDR_REGEXP.exec(options);
       if (!match) {
@@ -237,6 +239,11 @@ export class Application<S extends State = Record<string, any>>
     const server = isOptionsTls(options)
       ? this.#serveTls(options)
       : this.#serve(options);
+
+    if (serverRef) {
+      serverRef.current = server;
+    }
+
     const { signal } = options;
     const state = { closed: false, middleware, server };
     if (signal) {
